@@ -28,11 +28,11 @@ namespace BanLogger
         {
             if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
             {
-                SendWebhook(ev.Target, ev.Issuer.Nickname, ev.Reason, "Kick");
+                SendWebhook(ev.Target, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, "Kick");
             }
             if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
             {
-                SendWebhook(ev.Target, ev.Issuer.Nickname, ev.Reason, "Kick", true);
+                SendWebhook(ev.Target, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, "Kick", true);
             }
         }
 
@@ -43,11 +43,11 @@ namespace BanLogger
                 string description;
                 if (shouldShowID)
                 {
-                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer.Nickname} ({bannedPlayer.UserId})```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
+                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer?.Nickname ?? "OBAN"} ({bannedPlayer?.UserId ?? "offline ban"})```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
                 }
                 else
                 {
-                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer.Nickname}```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
+                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer?.Nickname ?? "OBAN"}```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
                 }
                 if (string.IsNullOrEmpty(reason))
                     reason = " ";
@@ -76,7 +76,7 @@ namespace BanLogger
                             Name = name, IconUrl= plugin.Config.ServerImgUrl
                         },
                         Title = plugin.Config.Title,
-                        Description = $"{plugin.Config.UserBannedText}```{bannedPlayer.Nickname}```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```",
+                        Description = description,
                         Image = new DiscordMessageEmbedImage()
                         {
                             Url = plugin.Config.ImageUrl
