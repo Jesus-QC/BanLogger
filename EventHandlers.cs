@@ -14,35 +14,43 @@ namespace BanLogger
 
         public void OnBanning(BanningEventArgs ev)
         {
-            if (string.IsNullOrEmpty(ev.Reason))
-                ev.Reason = " ";
             if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
             {
-                SendWebhook(ev.Target.Nickname, ev.Issuer.Nickname, ev.Reason, TimeFormatter(ev.Duration));
+                SendWebhook(ev.Target, ev.Issuer.Nickname, ev.Reason, TimeFormatter(ev.Duration));
             }
             if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
             {
-                SendWebhook(ev.Target.Nickname, ev.Target.UserId, ev.Issuer.Nickname, ev.Reason, TimeFormatter(ev.Duration));
-            }
-        }
-        public void OnKicking(KickingEventArgs ev)
-        {
-            if (string.IsNullOrEmpty(ev.Reason))
-                ev.Reason = " ";
-            if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
-            {
-                SendWebhook(ev.Target.Nickname, ev.Issuer.Nickname, ev.Reason, "Kick");
-            }
-            if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
-            {
-                SendWebhook(ev.Target.Nickname, ev.Target.UserId, ev.Issuer.Nickname, ev.Reason, "Kick");
+                SendWebhook(ev.Target, ev.Issuer.Nickname, ev.Reason, TimeFormatter(ev.Duration), true);
             }
         }
 
-        public void SendWebhook(string bannedNickname, string issuerNickname, string reason, string Expire)
+        public void OnKicking(KickingEventArgs ev)
+        {
+            if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+            {
+                SendWebhook(ev.Target, ev.Issuer.Nickname, ev.Reason, "Kick");
+            }
+            if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
+            {
+                SendWebhook(ev.Target, ev.Issuer.Nickname, ev.Reason, "Kick", true);
+            }
+        }
+
+        public void SendWebhook(Player bannedPlayer, string issuerNickname, string reason, string Expire, bool shouldShowID = false)
         {
             try
             {
+                string description;
+                if (shouldShowID)
+                {
+                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer.Nickname} ({bannedPlayer.UserId})```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
+                }
+                else
+                {
+                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer.Nickname}```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
+                }
+                if (string.IsNullOrEmpty(reason))
+                    reason = " ";
                 string name;
                 if (!plugin.Config.ServerName.ContainsKey(Server.Port))
                 {
@@ -68,7 +76,7 @@ namespace BanLogger
                             Name = name, IconUrl= plugin.Config.ServerImgUrl
                         },
                         Title = plugin.Config.Title,
-                        Description = $"{plugin.Config.UserBannedText}```{bannedNickname}```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```",
+                        Description = $"{plugin.Config.UserBannedText}```{bannedPlayer.Nickname}```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```",
                         Image = new DiscordMessageEmbedImage()
                         {
                             Url = plugin.Config.ImageUrl
@@ -82,63 +90,6 @@ namespace BanLogger
                 };
 
                 WebRequest webRequest = (HttpWebRequest)WebRequest.Create(plugin.Config.PublicWebhookUrl);
-                webRequest.ContentType = "application/json";
-                webRequest.Method = "POST";
-
-                using (var sendWebhook = new StreamWriter(webRequest.GetRequestStream()))
-                {
-                    string webhook = JsonConvert.SerializeObject(message);
-                    sendWebhook.Write(webhook);
-                }
-            }
-            catch(Exception e)
-            {
-                Log.Error(e);
-            }
-        }
-        public void SendWebhook(string bannedNickname, string bannedUserID, string issuerNickname, string reason, string Expire)
-        {
-            try
-            {
-                string name;
-                if (!plugin.Config.ServerName.ContainsKey(Server.Port))
-                {
-                    name = "Ban Logger";
-                }
-                else
-                {
-                    name = plugin.Config.ServerName[Server.Port];
-                }
-                var message = new Message()
-                {
-
-                    Username = plugin.Config.Username,
-                    AvatarUrl = plugin.Config.AvatarUrl,
-                    Content = plugin.Config.Content,
-                    Tts = plugin.Config.IsTtsEnabled,
-                    Embeds = new[]{
-                    new DiscordMessageEmbed()
-                    {
-                        Color = int.Parse(plugin.Config.HexColor.Replace("#", ""), System.Globalization.NumberStyles.HexNumber),
-                        Author = new DiscordMessageEmbedAuthor()
-                        {
-                            Name = plugin.Config.ServerName[Server.Port], IconUrl= plugin.Config.ServerImgUrl
-                        },
-                        Title = plugin.Config.Title,
-                        Description = $"{plugin.Config.UserBannedText}```{bannedNickname} [{bannedUserID}]```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```",
-                        Image = new DiscordMessageEmbedImage()
-                        {
-                            Url = plugin.Config.ImageUrl
-                        },
-                        Footer = new DiscordMessageEmbedFooter()
-                        {
-                            IconUrl = plugin.Config.FooterIconUrl, Text = plugin.Config.FooterTxt,
-                        }
-                    }
-                }
-                };
-
-                WebRequest webRequest = (HttpWebRequest)WebRequest.Create(plugin.Config.SecurityWebhookUrl);
                 webRequest.ContentType = "application/json";
                 webRequest.Method = "POST";
 
