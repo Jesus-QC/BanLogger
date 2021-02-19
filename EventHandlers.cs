@@ -16,11 +16,11 @@ namespace BanLogger
         {
             if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
             {
-                SendWebhook(ev.Target, ev.Issuer.Nickname, ev.Reason, TimeFormatter(ev.Duration));
+                SendWebhook(ev.Target, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, TimeFormatter(ev.Duration));
             }
             if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
             {
-                SendWebhook(ev.Target, ev.Issuer.Nickname, ev.Reason, TimeFormatter(ev.Duration), true);
+                SendWebhook(ev.Target, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, TimeFormatter(ev.Duration), false);
             }
         }
 
@@ -32,54 +32,57 @@ namespace BanLogger
             }
             if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
             {
-                SendWebhook(ev.Target, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, "Kick", true);
+                SendWebhook(ev.Target, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, "Kick", false);
             }
         }
 
-        public void SendWebhook(Player bannedPlayer, string issuerNickname, string reason, string Expire, bool shouldShowID = false)
+        public void SendWebhook(Player bannedPly, string issuerStaffNickname, string reason, string time, bool IsPublic = true)
         {
-            try
+            if (string.IsNullOrEmpty(reason))
+                reason = " ";
+
+            string name;
+            if (!plugin.Config.ServerName.ContainsKey(Server.Port))
             {
-                string description;
-                if (shouldShowID)
-                {
-                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer?.Nickname ?? "Null"} ({bannedPlayer?.UserId ?? "wtf the player banned is null"})```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
-                }
-                else
-                {
-                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer?.Nickname ?? "Null"}```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
-                }
-                if (string.IsNullOrEmpty(reason))
-                    reason = " ";
-                string name;
-                if (!plugin.Config.ServerName.ContainsKey(Server.Port))
-                {
-                    name = "Ban Logger";
-                }
-                else
-                {
-                    name = plugin.Config.ServerName[Server.Port];
-                }
-                var message = new Message()
-                {
-                    Username = plugin.Config.Username,
-                    AvatarUrl = plugin.Config.AvatarUrl,
-                    Content = plugin.Config.Content,
-                    Tts = plugin.Config.IsTtsEnabled,
-                    Embeds = new[]{
+                name = "Server #1 | Security";
+            }
+            else
+            {
+                name = plugin.Config.ServerName[Server.Port];
+            }
+
+            string desc;
+            string finalurl;
+            if (IsPublic)
+            {
+                finalurl = plugin.Config.PublicWebhookUrl;
+                desc = $"{plugin.Config.UserBannedText}```{bannedPly.Nickname}```{plugin.Config.IssuingStaffText}```{issuerStaffNickname}```{plugin.Config.ReasonText}```{reason}```{plugin.Config.TimeBannedText}```{time}```";
+            }
+            else
+            {
+                finalurl = plugin.Config.SecurityWebhookUrl;
+                desc = $"{plugin.Config.UserBannedText}```{bannedPly.Nickname} ({bannedPly.UserId})```{plugin.Config.IssuingStaffText}```{issuerStaffNickname}```{plugin.Config.ReasonText}```{reason}```{plugin.Config.TimeBannedText}```{time}```";
+            }
+
+            var message = new Message()
+            {
+                Username = plugin.Config.Username,
+                AvatarUrl = plugin.Config.AvatarUrl,
+                Content = plugin.Config.Content,
+                Tts = plugin.Config.IsTtsEnabled,
+                Embeds = new[]{
                     new DiscordMessageEmbed()
                     {
                         Color = int.Parse(plugin.Config.HexColor.Replace("#", ""), System.Globalization.NumberStyles.HexNumber),
                         Author = new DiscordMessageEmbedAuthor()
                         {
-
-                            Name = name, IconUrl= plugin.Config.ServerImgUrl
+                            Name = name, IconUrl= plugin.Config.ServerImgUrl,
                         },
                         Title = plugin.Config.Title,
-                        Description = description,
+                        Description = desc,
                         Image = new DiscordMessageEmbedImage()
                         {
-                            Url = plugin.Config.ImageUrl
+                            Url = plugin.Config.ImageUrl,
                         },
                         Footer = new DiscordMessageEmbedFooter()
                         {
@@ -87,22 +90,19 @@ namespace BanLogger
                         }
                     }
                 }
-                };
+            };
 
-                WebRequest webRequest = (HttpWebRequest)WebRequest.Create(plugin.Config.PublicWebhookUrl);
-                webRequest.ContentType = "application/json";
-                webRequest.Method = "POST";
+            WebRequest webRequest = (HttpWebRequest)WebRequest.Create(finalurl);
+            webRequest.ContentType = "application/json";
+            webRequest.Method = "POST";
 
-                using (var sendWebhook = new StreamWriter(webRequest.GetRequestStream()))
-                {
-                    string webhook = JsonConvert.SerializeObject(message);
-                    sendWebhook.Write(webhook);
-                }
-            }
-            catch(Exception e)
+            using (var sendWebhook = new StreamWriter(webRequest.GetRequestStream()))
             {
-                Log.Error(e);
+                string webhook = JsonConvert.SerializeObject(message);
+                sendWebhook.Write(webhook);
             }
+
+            var response = (HttpWebResponse)webRequest.GetResponse();
         }
 
         [JsonObject(MemberSerialization.OptIn)]
@@ -152,13 +152,13 @@ namespace BanLogger
                 DiscordMessageEmbedImage image = null,
                 DiscordMessageEmbedFooter footer = null)
             {
-                Color = color;
-                Author = author;
-                Title = title;
-                Url = url?.ToLower();
-                Description = description;
-                Image = image;
-                Footer = footer;
+                this.Color = color;
+                this.Author = author;
+                this.Title = title;
+                this.Url = url?.ToLower();
+                this.Description = description;
+                this.Image = image;
+                this.Footer = footer;
             }
 
         }
@@ -180,9 +180,9 @@ namespace BanLogger
 
             public DiscordMessageEmbedAuthor(string name = null, string url = null, string iconUrl = null)
             {
-                Name = name;
-                Url = url;
-                IconUrl = iconUrl;
+                this.Name = name;
+                this.Url = url;
+                this.IconUrl = iconUrl;
             }
         }
         [JsonObject(MemberSerialization.OptIn)]
@@ -199,7 +199,7 @@ namespace BanLogger
 
             public DiscordMessageEmbedImage(string url = null)
             {
-                Url = url;
+                this.Url = url;
             }
         }
         [JsonObject(MemberSerialization.OptIn)]
@@ -218,13 +218,14 @@ namespace BanLogger
 
             public DiscordMessageEmbedFooter(string text = null, string iconUrl = null)
             {
-                Text = text;
-                IconUrl = iconUrl;
+                this.Text = text;
+                this.IconUrl = iconUrl;
             }
         }
-        // This code is from @Sinsa's ScpAdminReports
+
         private string TimeFormatter(int duration)
         {
+            // This code is from @Sinsa's ScpAdminReports
             if (duration < 60)
             {
                 return ($"{duration}s");

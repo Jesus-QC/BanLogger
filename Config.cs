@@ -9,7 +9,6 @@ namespace BanLogger
         [Description("Is the plugin enabled?")]
         public bool IsEnabled { get; set; } = true;
 
-        [Description("Webhook Links")]
         public string PublicWebhookUrl { get; set; } = "https://discord.com/api/webhooks/webhook.id/webhook.token";
         public string SecurityWebhookUrl { get; set; } = "https://discord.com/api/webhooks/webhook.id/webhook.token";
         [Description("Webhook Username")]
