@@ -43,11 +43,11 @@ namespace BanLogger
                 string description;
                 if (shouldShowID)
                 {
-                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer?.Nickname ?? "OBAN"} ({bannedPlayer?.UserId ?? "offline ban"})```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
+                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer?.Nickname ?? "Null"} ({bannedPlayer?.UserId ?? "wtf the player banned is null"})```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
                 }
                 else
                 {
-                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer?.Nickname ?? "OBAN"}```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
+                    description = $"{plugin.Config.UserBannedText}```{bannedPlayer?.Nickname ?? "Null"}```\n{plugin.Config.IssuingStaffText}```{issuerNickname}```\n{plugin.Config.ReasonText}```{reason}```\n{plugin.Config.TimeBannedText}```{Expire}```";
                 }
                 if (string.IsNullOrEmpty(reason))
                     reason = " ";
