@@ -19,6 +19,7 @@ namespace BanLogger
 			
 			Exiled.Events.Handlers.Player.Banning += EventHandlers.OnBanning;
 			Exiled.Events.Handlers.Player.Kicking += EventHandlers.OnKicking;
+			Exiled.Events.Handlers.Player.Banned += EventHandlers.OnPlayerOban;
 
 			base.OnEnabled();
 		}
@@ -27,7 +28,8 @@ namespace BanLogger
 		{
 			Exiled.Events.Handlers.Player.Banning -= EventHandlers.OnBanning;
 			Exiled.Events.Handlers.Player.Kicking -= EventHandlers.OnKicking;
-			
+			Exiled.Events.Handlers.Player.Banned -= EventHandlers.OnPlayerOban;
+
 			EventHandlers = null;
 
 			base.OnDisabled();

@@ -11,6 +11,8 @@ namespace BanLogger
 
         public string PublicWebhookUrl { get; set; } = "https://discord.com/api/webhooks/webhook.id/webhook.token";
         public string SecurityWebhookUrl { get; set; } = "https://discord.com/api/webhooks/webhook.id/webhook.token";
+        [Description("Steam Api key to get the nickname of obanned users (Get your api key in https://steamcommunity.com/dev/apikey)")]
+        public string SteamApiKey { get; set; } = "00000000000000000000000000000000";
         [Description("Webhook Username")]
         public string Username { get; set; } = "MyServer Bans | Security";
         [Description("Webhook avatar image")]

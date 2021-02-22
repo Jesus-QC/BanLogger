@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Net;
+using System.Text.RegularExpressions;
 using Exiled.API.Features;
 using Exiled.Events.EventArgs;
 using Newtonsoft.Json;
@@ -36,7 +37,55 @@ namespace BanLogger
             }
         }
 
-        public void SendWebhook(Player bannedPly, string issuerStaffNickname, string reason, string time, bool IsPublic = true)
+        public void OnPlayerOban(BannedEventArgs ev)
+        {
+            if (ev.Type != BanHandler.BanType.UserId) return;
+            if (ev.Details.OriginalName == "Unknown - offline ban")
+            {
+                string ticksintime = TimeSpan.FromTicks(ev.Details.Expires - ev.Details.IssuanceTime).TotalSeconds.ToString();
+                string time = TimeFormatter(int.Parse(ticksintime));
+                if (ev.Details.Id.Contains("@steam") && !string.IsNullOrEmpty(plugin.Config.SteamApiKey))
+                {
+                    string nickname;
+                    string pattern = @"(\d+)";
+                    var match = Regex.Match(ev.Details.Id, pattern);
+
+                    var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=" + plugin.Config.SteamApiKey + "&steamids=" + match.Groups[0].Value);
+                    httpWebRequest.Method = "GET";
+
+                    var httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+                    using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
+                    {
+                        var result = streamReader.ReadToEnd();
+                        string getname = @"\x22personaname\x22:\x22(.+?)\x22";
+                        nickname = Regex.Match(result, getname).Groups[1].Value;
+                        Log.Info(nickname);
+                    }
+
+                    if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+                    {
+                        SendObanWebhook(nickname, ev.Details.Id, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
+                    }
+                    if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
+                    {
+                        SendObanWebhook(nickname, ev.Details.Id, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
+                    }
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+                    {
+                        SendObanWebhook("UNKNOWN", "oban", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
+                    }
+                    if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
+                    {
+                        SendObanWebhook("UNKNOWN", "oban", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
+                    }
+                }
+            }
+        }
+
+        public void SendWebhook(Player bannedPly, string issuerStaffNickname, string reason, string time, bool IsPublic = true, bool IsOban = false)
         {
             if (string.IsNullOrEmpty(reason))
                 reason = " ";
@@ -62,6 +111,74 @@ namespace BanLogger
             {
                 finalurl = plugin.Config.SecurityWebhookUrl;
                 desc = $"{plugin.Config.UserBannedText}```{bannedPly.Nickname} ({bannedPly.UserId})```{plugin.Config.IssuingStaffText}```{issuerStaffNickname}```{plugin.Config.ReasonText}```{reason}```{plugin.Config.TimeBannedText}```{time}```";
+            }
+
+            var message = new Message()
+            {
+                Username = plugin.Config.Username,
+                AvatarUrl = plugin.Config.AvatarUrl,
+                Content = plugin.Config.Content,
+                Tts = plugin.Config.IsTtsEnabled,
+                Embeds = new[]{
+                    new DiscordMessageEmbed()
+                    {
+                        Color = int.Parse(plugin.Config.HexColor.Replace("#", ""), System.Globalization.NumberStyles.HexNumber),
+                        Author = new DiscordMessageEmbedAuthor()
+                        {
+                            Name = name, IconUrl= plugin.Config.ServerImgUrl,
+                        },
+                        Title = plugin.Config.Title,
+                        Description = desc,
+                        Image = new DiscordMessageEmbedImage()
+                        {
+                            Url = plugin.Config.ImageUrl,
+                        },
+                        Footer = new DiscordMessageEmbedFooter()
+                        {
+                            IconUrl = plugin.Config.FooterIconUrl, Text = plugin.Config.FooterTxt,
+                        }
+                    }
+                }
+            };
+
+            WebRequest webRequest = (HttpWebRequest)WebRequest.Create(finalurl);
+            webRequest.ContentType = "application/json";
+            webRequest.Method = "POST";
+
+            using (var sendWebhook = new StreamWriter(webRequest.GetRequestStream()))
+            {
+                string webhook = JsonConvert.SerializeObject(message);
+                sendWebhook.Write(webhook);
+            }
+
+            var response = (HttpWebResponse)webRequest.GetResponse();
+        }
+        public void SendObanWebhook(string bannedPly, string userId, string issuerStaffNickname, string reason, string time, bool IsPublic = true)
+        {
+            if (string.IsNullOrEmpty(reason))
+                reason = " ";
+
+            string name;
+            if (!plugin.Config.ServerName.ContainsKey(Server.Port))
+            {
+                name = "Server #1 | Security";
+            }
+            else
+            {
+                name = plugin.Config.ServerName[Server.Port];
+            }
+
+            string desc;
+            string finalurl;
+            if (IsPublic)
+            {
+                finalurl = plugin.Config.PublicWebhookUrl;
+                desc = $"{plugin.Config.UserBannedText}```{bannedPly}```{plugin.Config.IssuingStaffText}```{issuerStaffNickname}```{plugin.Config.ReasonText}```{reason}```{plugin.Config.TimeBannedText}```{time}```";
+            }
+            else
+            {
+                finalurl = plugin.Config.SecurityWebhookUrl;
+                desc = $"{plugin.Config.UserBannedText}```{bannedPly} ({userId})```{plugin.Config.IssuingStaffText}```{issuerStaffNickname}```{plugin.Config.ReasonText}```{reason}```{plugin.Config.TimeBannedText}```{time}```";
             }
 
             var message = new Message()
