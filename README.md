@@ -12,7 +12,7 @@ Who is **Webhooks** and what is the **Steam API key**? Well, if you don't know w
 
 ## Webhooks
 
-First, webhooks are a utiliy used to send messages to text channels without needing adiscord application, for example bots.
+First, webhooks are a utiliy used to send messages to text channels without needing a discord application (like bots).
 
 This is how you can *get the channel webhook url* in your server:
 
