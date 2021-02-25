@@ -3,7 +3,8 @@
 </h4>
 
 ***Ban Logger*** This plugin allows you to log bans into any discord channel of your server with the help of webhooks.
-**Webhooks**, **Steam API key**? Well, if you don't know what does this mean continue scrolling down.
+
+Who is **Webhooks** and what is the **Steam API key**? Well, if you don't know what does this mean continue scrolling down.
 
 <img alt="Ban Logger" src="https://cdn.discordapp.com/attachments/812402319467610192/812403037486186506/unknown.png">
 
@@ -11,9 +12,9 @@
 
 ## Webhooks
 
-First, webhooks are a utiliy used to send messages to text channels without needing adiscord application, for example bots.
+First, webhooks are a utiliy used to send messages to text channels without needing a discord application (like bots).
 
-This is how you can *get the channel webhook url* in your server:
+This is how you can *get the channel webhook url* of your server:
 
 1. Click *Edit channel* in the desired server channel.
 2. Go to the *integrations* section
