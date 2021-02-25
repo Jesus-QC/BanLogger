@@ -43,7 +43,15 @@ namespace BanLogger
             if (ev.Details.OriginalName == "Unknown - offline ban")
             {
                 string ticksintime = TimeSpan.FromTicks(ev.Details.Expires - ev.Details.IssuanceTime).TotalSeconds.ToString();
-                string time = TimeFormatter(int.Parse(ticksintime));
+                string time;
+                if(int.TryParse(ticksintime, out int timeInt))
+                {
+                    time = TimeFormatter(timeInt);
+                }
+                else
+                {
+                    time = "Unknown";
+                }
                 if (ev.Details.Id.Contains("@steam") && !string.IsNullOrEmpty(plugin.Config.SteamApiKey))
                 {
                     string nickname;
@@ -105,12 +113,12 @@ namespace BanLogger
             if (IsPublic)
             {
                 finalurl = plugin.Config.PublicWebhookUrl;
-                desc = $"{plugin.Config.UserBannedText}```{bannedPly.Nickname}```{plugin.Config.IssuingStaffText}```{issuerStaffNickname}```{plugin.Config.ReasonText}```{reason}```{plugin.Config.TimeBannedText}```{time}```";
+                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly.Nickname}```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
             }
             else
             {
                 finalurl = plugin.Config.SecurityWebhookUrl;
-                desc = $"{plugin.Config.UserBannedText}```{bannedPly.Nickname} ({bannedPly.UserId})```{plugin.Config.IssuingStaffText}```{issuerStaffNickname}```{plugin.Config.ReasonText}```{reason}```{plugin.Config.TimeBannedText}```{time}```";
+                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly.Nickname} ({bannedPly.UserId})```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
             }
 
             var message = new Message()
@@ -173,12 +181,12 @@ namespace BanLogger
             if (IsPublic)
             {
                 finalurl = plugin.Config.PublicWebhookUrl;
-                desc = $"{plugin.Config.UserBannedText}```{bannedPly}```{plugin.Config.IssuingStaffText}```{issuerStaffNickname}```{plugin.Config.ReasonText}```{reason}```{plugin.Config.TimeBannedText}```{time}```";
+                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly}```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
             }
             else
             {
                 finalurl = plugin.Config.SecurityWebhookUrl;
-                desc = $"{plugin.Config.UserBannedText}```{bannedPly} ({userId})```{plugin.Config.IssuingStaffText}```{issuerStaffNickname}```{plugin.Config.ReasonText}```{reason}```{plugin.Config.TimeBannedText}```{time}```";
+                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly} ({userId})```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
             }
 
             var message = new Message()

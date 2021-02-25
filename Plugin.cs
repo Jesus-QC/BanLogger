@@ -8,8 +8,8 @@ namespace BanLogger
 		public override string Name { get; } = "Ban Logger";
 		public override string Author { get; } = "Jesus-QC";
 		public override string Prefix { get; } = "BanLogger";
-		public override Version Version { get; } = new Version(1, 0, 1);
-		public override Version RequiredExiledVersion { get; } = new Version(2, 1, 35);
+		public override Version Version { get; } = new Version(1, 0, 2);
+		public override Version RequiredExiledVersion { get; } = new Version(2, 3, 3);
 
 		public EventHandlers EventHandlers;
 
