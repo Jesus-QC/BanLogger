@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text.RegularExpressions;
 using Exiled.API.Features;
 using Exiled.Events.EventArgs;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BanLogger
 {
@@ -54,46 +56,60 @@ namespace BanLogger
                 }
                 if (ev.Details.Id.Contains("@steam") && !string.IsNullOrEmpty(plugin.Config.SteamApiKey))
                 {
-                    string nickname;
-                    string pattern = @"(\d+)";
-                    var match = Regex.Match(ev.Details.Id, pattern);
-
-                    var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=" + plugin.Config.SteamApiKey + "&steamids=" + match.Groups[0].Value);
-                    httpWebRequest.Method = "GET";
-
-                    var httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
-                    using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
+                    try
                     {
-                        var result = streamReader.ReadToEnd();
-                        string getname = @"\x22personaname\x22:\x22(.+?)\x22";
-                        nickname = Regex.Match(result, getname).Groups[1].Value;
-                        Log.Info(nickname);
+                        string nickname;
+                        string country;
+                        string pattern = @"(\d+)";
+                        var match = Regex.Match(ev.Details.Id, pattern);
+
+                        var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=" + plugin.Config.SteamApiKey + "&steamids=" + match.Groups[0].Value);
+                        httpWebRequest.Method = "GET";
+
+                        var httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+                        using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
+                        {
+                            var result = streamReader.ReadToEnd();
+                            nickname = Regex.Match(result, @"\x22personaname\x22:\x22(.+?)\x22").Groups[1].Value;
+                            country = Regex.Match(result, @"\x22loccountrycode\x22:\x22(.+?)\x22").Groups[1].Value;
+                        }
+
+                        if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+                        {
+                            SendObanWebhook(nickname, ev.Details.Id, country, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
+                        }
+                        if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
+                        {
+                            SendObanWebhook(nickname, ev.Details.Id, country, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
+                        }
                     }
-
-                    if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+                    catch(Exception)
                     {
-                        SendObanWebhook(nickname, ev.Details.Id, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
-                    }
-                    if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
-                    {
-                        SendObanWebhook(nickname, ev.Details.Id, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
+                        if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+                        {
+                            SendObanWebhook("UNKNOWN", "oban", " - ", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
+                        }
+                        if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
+                        {
+                            SendObanWebhook("UNKNOWN", "oban", " - ", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
+                        }
                     }
                 }
                 else
                 {
                     if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
                     {
-                        SendObanWebhook("UNKNOWN", "oban", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
+                        SendObanWebhook("UNKNOWN", "oban", " - ", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
                     }
                     if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
                     {
-                        SendObanWebhook("UNKNOWN", "oban", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
+                        SendObanWebhook("UNKNOWN", "oban", " - ", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
                     }
                 }
             }
         }
 
-        public void SendWebhook(Player bannedPly, string issuerStaffNickname, string reason, string time, bool IsPublic = true, bool IsOban = false)
+        public void SendWebhook(Player bannedPly, string issuerStaffNickname, string reason, string time, bool IsPublic = true)
         {
             if (string.IsNullOrEmpty(reason))
                 reason = " ";
@@ -117,8 +133,17 @@ namespace BanLogger
             }
             else
             {
+                string country;
                 finalurl = plugin.Config.SecurityWebhookUrl;
-                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly.Nickname} ({bannedPly.UserId})```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
+                if(bannedPly.IPAddress == "127.0.0.1")
+                {
+                    country = RegionInfo.CurrentRegion.TwoLetterISORegionName;
+                }
+                else
+                {
+                    country = GetCountry(bannedPly.IPAddress);
+                }
+                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly.Nickname} ({bannedPly.UserId}) [{country}]```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
             }
 
             var message = new Message()
@@ -161,7 +186,8 @@ namespace BanLogger
 
             var response = (HttpWebResponse)webRequest.GetResponse();
         }
-        public void SendObanWebhook(string bannedPly, string userId, string issuerStaffNickname, string reason, string time, bool IsPublic = true)
+
+        public void SendObanWebhook(string bannedPly, string userId, string bannedPlyCountry, string issuerStaffNickname, string reason, string time, bool IsPublic = true)
         {
             if (string.IsNullOrEmpty(reason))
                 reason = " ";
@@ -186,7 +212,7 @@ namespace BanLogger
             else
             {
                 finalurl = plugin.Config.SecurityWebhookUrl;
-                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly} ({userId})```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
+                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly} ({userId}) [{bannedPlyCountry}]```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
             }
 
             var message = new Message()
@@ -228,6 +254,26 @@ namespace BanLogger
             }
 
             var response = (HttpWebResponse)webRequest.GetResponse();
+        }
+
+        public static string GetCountry(string IP)
+        {
+            string url = "http://ip-api.com/json/" + IP + "?fields=countryCode,region,regionName,city";
+            Log.Info(url);
+            var request = WebRequest.Create(url);
+
+            using (WebResponse wrs = request.GetResponse())
+            using (Stream stream = wrs.GetResponseStream())
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                string json = reader.ReadToEnd();
+                var obj = JObject.Parse(json);
+                string City = (string)obj["countryCode"];
+                string Country = (string)obj["regionName"];
+                string CountryCode = (string)obj["city"];
+
+                return (CountryCode + " - " + Country + "," + City);
+            }
         }
 
         [JsonObject(MemberSerialization.OptIn)]
