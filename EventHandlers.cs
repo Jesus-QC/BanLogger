@@ -3,39 +3,41 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Exiled.API.Features;
 using Exiled.Events.EventArgs;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Utf8Json;
 
 namespace BanLogger
 {
-    public partial class EventHandlers
+    public class EventHandlers
     {
-        public Plugin plugin;
-        public EventHandlers(Plugin plugin) => this.plugin = plugin;
+        private readonly Plugin _plugin;
+        public EventHandlers(Plugin plugin) => _plugin = plugin;
 
+        private string _defaultUrl = "https://discord.com/api/webhooks/webhook.id/webhook.token";
+        
         public void OnBanning(BanningEventArgs ev)
         {
-            if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+            if (!string.IsNullOrEmpty(_plugin.Config.PublicWebhookUrl) && _plugin.Config.PublicWebhookUrl != _defaultUrl)
             {
-                SendWebhook(ev.Target, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, TimeFormatter(ev.Duration));
+                SendWebhook(ev.Target.Nickname, ev.Target.UserId, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, TimeFormatter(ev.Duration));
             }
-            if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
+            if (!string.IsNullOrEmpty(_plugin.Config.SecurityWebhookUrl) && _plugin.Config.SecurityWebhookUrl != _defaultUrl)
             {
-                SendWebhook(ev.Target, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, TimeFormatter(ev.Duration), false);
+                SendWebhook(ev.Target.Nickname, ev.Target.UserId, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, TimeFormatter(ev.Duration), false);
             }
         }
 
         public void OnKicking(KickingEventArgs ev)
         {
-            if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+            if (!string.IsNullOrEmpty(_plugin.Config.PublicWebhookUrl) && _plugin.Config.PublicWebhookUrl != _defaultUrl)
             {
-                SendWebhook(ev.Target, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, "Kick");
+                SendWebhook(ev.Target.Nickname, ev.Target.UserId, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, "Kick");
             }
-            if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
+            if (!string.IsNullOrEmpty(_plugin.Config.SecurityWebhookUrl) && _plugin.Config.SecurityWebhookUrl != _defaultUrl)
             {
-                SendWebhook(ev.Target, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, "Kick", false);
+                SendWebhook(ev.Target.Nickname, ev.Target.UserId, ev.Issuer?.Nickname ?? "Server Console", ev.Reason, "Kick", false);
             }
         }
 
@@ -46,421 +48,252 @@ namespace BanLogger
             {
                 string ticksintime = TimeSpan.FromTicks(ev.Details.Expires - ev.Details.IssuanceTime).TotalSeconds.ToString();
                 string time;
+                
                 if(int.TryParse(ticksintime, out int timeInt))
-                {
                     time = TimeFormatter(timeInt);
-                }
                 else
-                {
                     time = "Unknown";
-                }
-                if (ev.Details.Id.Contains("@steam") && !string.IsNullOrEmpty(plugin.Config.SteamApiKey))
+                
+                if (ev.Details.Id.Contains("@steam") && !string.IsNullOrEmpty(_plugin.Config.SteamApiKey))
                 {
                     try
                     {
-                        string nickname;
-                        string country;
-                        string pattern = @"(\d+)";
-                        var match = Regex.Match(ev.Details.Id, pattern);
+                        GetUserName(ev.Details.Id, out string nickname);
 
-                        var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=" + plugin.Config.SteamApiKey + "&steamids=" + match.Groups[0].Value);
-                        httpWebRequest.Method = "GET";
-
-                        var httpResponse = (HttpWebResponse)httpWebRequest.GetResponse();
-                        using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
+                        if (!string.IsNullOrEmpty(_plugin.Config.PublicWebhookUrl) && _plugin.Config.PublicWebhookUrl != _defaultUrl)
                         {
-                            var result = streamReader.ReadToEnd();
-                            nickname = Regex.Match(result, @"\x22personaname\x22:\x22(.+?)\x22").Groups[1].Value;
-                            country = Regex.Match(result, @"\x22loccountrycode\x22:\x22(.+?)\x22").Groups[1].Value;
+                            SendWebhook(nickname, ev.Details.Id, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
                         }
-
-                        if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+                        if (!string.IsNullOrEmpty(_plugin.Config.SecurityWebhookUrl) && _plugin.Config.SecurityWebhookUrl != _defaultUrl)
                         {
-                            SendObanWebhook(nickname, ev.Details.Id, country, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
-                        }
-                        if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
-                        {
-                            SendObanWebhook(nickname, ev.Details.Id, country, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
+                            SendWebhook(nickname, ev.Details.Id, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
                         }
                     }
-                    catch(Exception)
+                    catch(Exception e)
                     {
-                        if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+                        if (!string.IsNullOrEmpty(_plugin.Config.PublicWebhookUrl) && _plugin.Config.PublicWebhookUrl != _defaultUrl)
                         {
-                            SendObanWebhook("UNKNOWN", "oban", " - ", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
+                            SendWebhook("UNKNOWN (invalid steam api key)", ev.Details.Id, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
                         }
-                        if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
+                        if (!string.IsNullOrEmpty(_plugin.Config.SecurityWebhookUrl) && _plugin.Config.SecurityWebhookUrl != _defaultUrl)
                         {
-                            SendObanWebhook("UNKNOWN", "oban", " - ", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
+                            SendWebhook("UNKNOWN (invalid steam api key)", ev.Details.Id, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
                         }
                     }
                 }
                 else
                 {
-                    if (!string.IsNullOrEmpty(plugin.Config.PublicWebhookUrl))
+                    if (!string.IsNullOrEmpty(_plugin.Config.PublicWebhookUrl) && _plugin.Config.PublicWebhookUrl != _defaultUrl)
                     {
-                        SendObanWebhook("UNKNOWN", "oban", " - ", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
+                        SendWebhook("UNKNOWN", ev.Details.Id, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time);
                     }
-                    if (!string.IsNullOrEmpty(plugin.Config.SecurityWebhookUrl))
+                    if (!string.IsNullOrEmpty(_plugin.Config.SecurityWebhookUrl) && _plugin.Config.SecurityWebhookUrl != _defaultUrl)
                     {
-                        SendObanWebhook("UNKNOWN", "oban", " - ", ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
+                        SendWebhook("UNKNOWN", ev.Details.Id, ev.Issuer?.Nickname ?? "Server Console", ev.Details.Reason, time, false);
                     }
                 }
             }
         }
 
-        public void SendWebhook(Player bannedPly, string issuerStaffNickname, string reason, string time, bool IsPublic = true)
+        public void SendWebhook(string bannedPly, string bannedPlyId, string issuerStaffNickname, string reason, string time, bool isPublic = true)
         {
             if (string.IsNullOrEmpty(reason))
                 reason = " ";
 
             string name;
-            if (!plugin.Config.ServerName.ContainsKey(Server.Port))
-            {
+            if (!_plugin.Config.ServerName.ContainsKey(Server.Port))
                 name = "Server #1 | Security";
-            }
             else
-            {
-                name = plugin.Config.ServerName[Server.Port];
-            }
-
+                name = _plugin.Config.ServerName[Server.Port];
+            
             string desc;
             string finalurl;
-            if (IsPublic)
+            if (isPublic)
             {
-                finalurl = plugin.Config.PublicWebhookUrl;
-                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly.Nickname}```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
+                finalurl = _plugin.Config.PublicWebhookUrl;
+                desc = $"{_plugin.Config.UserBannedText}\n```{bannedPly}```\n{_plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{_plugin.Config.ReasonText}\n```{reason}```\n{_plugin.Config.TimeBannedText}\n```{time}```";
             }
             else
             {
-                string country;
-                finalurl = plugin.Config.SecurityWebhookUrl;
-                if(bannedPly.IPAddress == "127.0.0.1")
-                {
-                    country = RegionInfo.CurrentRegion.TwoLetterISORegionName;
-                }
-                else
-                {
-                    country = GetCountry(bannedPly.IPAddress);
-                }
-                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly.Nickname} ({bannedPly.UserId}) [{country}]```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
+                finalurl = _plugin.Config.SecurityWebhookUrl;
+                desc = $"{_plugin.Config.UserBannedText}\n```{bannedPly} ({bannedPlyId})```\n{_plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{_plugin.Config.ReasonText}\n```{reason}```\n{_plugin.Config.TimeBannedText}\n```{time}```";
             }
 
-            var message = new Message()
+            var message = new Message
             {
-                Username = plugin.Config.Username,
-                AvatarUrl = plugin.Config.AvatarUrl,
-                Content = plugin.Config.Content,
-                Tts = plugin.Config.IsTtsEnabled,
-                Embeds = new[]{
-                    new DiscordMessageEmbed()
+                username = _plugin.Config.Username,
+                avatar_url = _plugin.Config.AvatarUrl,
+                content = _plugin.Config.Content,
+                tts = _plugin.Config.IsTtsEnabled,
+                embeds = new[]{
+                    new DiscordMessageEmbed
                     {
-                        Color = int.Parse(plugin.Config.HexColor.Replace("#", ""), System.Globalization.NumberStyles.HexNumber),
-                        Author = new DiscordMessageEmbedAuthor()
+                        color = int.Parse(_plugin.Config.HexColor.Replace("#", ""), NumberStyles.HexNumber),
+                        author = new DiscordMessageEmbedAuthor
                         {
-                            Name = name, IconUrl= plugin.Config.ServerImgUrl,
+                            name = name, icon_url = _plugin.Config.ServerImgUrl,
                         },
-                        Title = plugin.Config.Title,
-                        Description = desc,
-                        Image = new DiscordMessageEmbedImage()
+                        title = _plugin.Config.Title,
+                        description = desc,
+                        image = new DiscordMessageEmbedImage
                         {
-                            Url = plugin.Config.ImageUrl,
+                            url = _plugin.Config.ImageUrl,
                         },
-                        Footer = new DiscordMessageEmbedFooter()
+                        footer = new DiscordMessageEmbedFooter
                         {
-                            IconUrl = plugin.Config.FooterIconUrl, Text = plugin.Config.FooterTxt,
+                            icon_url = _plugin.Config.FooterIconUrl, text = _plugin.Config.FooterTxt,
                         }
                     }
                 }
             };
 
-            WebRequest webRequest = (HttpWebRequest)WebRequest.Create(finalurl);
-            webRequest.ContentType = "application/json";
-            webRequest.Method = "POST";
-
-            using (var sendWebhook = new StreamWriter(webRequest.GetRequestStream()))
-            {
-                string webhook = JsonConvert.SerializeObject(message);
-                sendWebhook.Write(webhook);
-            }
-
-            var response = (HttpWebResponse)webRequest.GetResponse();
+            SendMessage(message, finalurl);
         }
 
-        public void SendObanWebhook(string bannedPly, string userId, string bannedPlyCountry, string issuerStaffNickname, string reason, string time, bool IsPublic = true)
+        public void SendMessage(Message message, string url)
         {
-            if (string.IsNullOrEmpty(reason))
-                reason = " ";
+            var secondaryThread = new Thread(() =>
+            {
+                WebRequest webRequest = (HttpWebRequest)WebRequest.Create(url);
+                webRequest.ContentType = "application/json";
+                webRequest.Method = "POST";
 
-            string name;
-            if (!plugin.Config.ServerName.ContainsKey(Server.Port))
-            {
-                name = "Server #1 | Security";
-            }
-            else
-            {
-                name = plugin.Config.ServerName[Server.Port];
-            }
-
-            string desc;
-            string finalurl;
-            if (IsPublic)
-            {
-                finalurl = plugin.Config.PublicWebhookUrl;
-                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly}```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
-            }
-            else
-            {
-                finalurl = plugin.Config.SecurityWebhookUrl;
-                desc = $"{plugin.Config.UserBannedText}\n```{bannedPly} ({userId}) [{bannedPlyCountry}]```\n{plugin.Config.IssuingStaffText}\n```{issuerStaffNickname}```\n{plugin.Config.ReasonText}\n```{reason}```\n{plugin.Config.TimeBannedText}\n```{time}```";
-            }
-
-            var message = new Message()
-            {
-                Username = plugin.Config.Username,
-                AvatarUrl = plugin.Config.AvatarUrl,
-                Content = plugin.Config.Content,
-                Tts = plugin.Config.IsTtsEnabled,
-                Embeds = new[]{
-                    new DiscordMessageEmbed()
+                try
+                {
+                    using (var sendWebhook = new StreamWriter(webRequest.GetRequestStream()))
                     {
-                        Color = int.Parse(plugin.Config.HexColor.Replace("#", ""), System.Globalization.NumberStyles.HexNumber),
-                        Author = new DiscordMessageEmbedAuthor()
-                        {
-                            Name = name, IconUrl= plugin.Config.ServerImgUrl,
-                        },
-                        Title = plugin.Config.Title,
-                        Description = desc,
-                        Image = new DiscordMessageEmbedImage()
-                        {
-                            Url = plugin.Config.ImageUrl,
-                        },
-                        Footer = new DiscordMessageEmbedFooter()
-                        {
-                            IconUrl = plugin.Config.FooterIconUrl, Text = plugin.Config.FooterTxt,
-                        }
+                        var webhook = JsonSerializer.Serialize(message);
+                        sendWebhook.Write(System.Text.Encoding.UTF8.GetString(webhook));
                     }
+
+                    var response = (HttpWebResponse)webRequest.GetResponse();
                 }
-            };
-
-            WebRequest webRequest = (HttpWebRequest)WebRequest.Create(finalurl);
-            webRequest.ContentType = "application/json";
-            webRequest.Method = "POST";
-
-            using (var sendWebhook = new StreamWriter(webRequest.GetRequestStream()))
-            {
-                string webhook = JsonConvert.SerializeObject(message);
-                sendWebhook.Write(webhook);
-            }
-
-            var response = (HttpWebResponse)webRequest.GetResponse();
+                catch (Exception e)
+                {
+                    Log.Error(e);
+                }
+            });
+            
+            secondaryThread.Start();
         }
 
-        public static string GetCountry(string IP)
+        public void GetUserName(string userid, out string nickname)
         {
-            string url = "http://ip-api.com/json/" + IP + "?fields=countryCode,region,regionName,city";
-            Log.Info(url);
-            var request = WebRequest.Create(url);
+            var httpWebRequest = (HttpWebRequest) WebRequest.Create($"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={_plugin.Config.SteamApiKey}&steamids={userid}");
+            httpWebRequest.Method = "GET";
 
-            using (WebResponse wrs = request.GetResponse())
-            using (Stream stream = wrs.GetResponseStream())
-            using (StreamReader reader = new StreamReader(stream))
+            var httpResponse = (HttpWebResponse) httpWebRequest.GetResponse();
+            
+            using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
             {
-                string json = reader.ReadToEnd();
-                var obj = JObject.Parse(json);
-                string City = (string)obj["countryCode"];
-                string Country = (string)obj["regionName"];
-                string CountryCode = (string)obj["city"];
-
-                return (CountryCode + " - " + Country + "," + City);
+                var result = streamReader.ReadToEnd();
+                nickname = Regex.Match(result, @"\x22personaname\x22:\x22(.+?)\x22").Groups[1].Value;
             }
         }
 
-        [JsonObject(MemberSerialization.OptIn)]
         public class Message
         {
-            [JsonProperty("username")]
-            public string Username { get; set; }
-            [JsonProperty("avatar_url")]
-            public string AvatarUrl { get; set; }
-            [JsonProperty("content")]
-            public string Content { get; set; }
-            [JsonProperty("tts")]
-            public bool Tts { get; set; }
-            [JsonProperty("embeds")]
-            public DiscordMessageEmbed[] Embeds { get; set; }
+            public string username { get; set; }
+            public string avatar_url { get; set; }
+            public string content { get; set; }
+            public bool tts { get; set; }
+            public DiscordMessageEmbed[] embeds { get; set; }
         }
-        [JsonObject(MemberSerialization.OptIn)]
+        
         public class DiscordMessageEmbed
         {
-            [JsonProperty("color")]
-            public int? Color { get; set; }
-            [JsonProperty("author")]
-            public DiscordMessageEmbedAuthor Author { get; set; }
-            [JsonProperty("title")]
-            public string Title { get; set; }
-            [JsonProperty("url")]
-            public string Url { get; set; }
-            [JsonProperty("description")]
-            public string Description { get; set; }
-            [JsonProperty("image")]
-            public DiscordMessageEmbedImage Image { get; set; }
-            [JsonProperty("footer")]
-            public DiscordMessageEmbedFooter Footer { get; set; }
-
-            [JsonConstructor]
-            private DiscordMessageEmbed()
-            {
-
-            }
-
-            public DiscordMessageEmbed(
-                string title = null,
-                int? color = null,
-                DiscordMessageEmbedAuthor author = null,
-                string url = null,
-                string description = null,
-                DiscordMessageEmbedImage image = null,
-                DiscordMessageEmbedFooter footer = null)
-            {
-                this.Color = color;
-                this.Author = author;
-                this.Title = title;
-                this.Url = url?.ToLower();
-                this.Description = description;
-                this.Image = image;
-                this.Footer = footer;
-            }
-
+            public int? color { get; set; }
+            public DiscordMessageEmbedAuthor author { get; set; }
+            public string title { get; set; }
+            public string url { get; set; }
+            public string description { get; set; }
+            public DiscordMessageEmbedImage image { get; set; }
+            public DiscordMessageEmbedFooter footer { get; set; }
         }
-        [JsonObject(MemberSerialization.OptIn)]
+
         public class DiscordMessageEmbedAuthor
         {
-            [JsonProperty("name")]
-            public string Name { get; set; }
-            [JsonProperty("url")]
-            public string Url { get; set; }
-            [JsonProperty("icon_url")]
-            public string IconUrl { get; set; }
-
-            [JsonConstructor]
-            private DiscordMessageEmbedAuthor()
-            {
-
-            }
-
-            public DiscordMessageEmbedAuthor(string name = null, string url = null, string iconUrl = null)
-            {
-                this.Name = name;
-                this.Url = url;
-                this.IconUrl = iconUrl;
-            }
+            public string name { get; set; }
+            public string url { get; set; }
+            public string icon_url { get; set; }
         }
-        [JsonObject(MemberSerialization.OptIn)]
+        
         public class DiscordMessageEmbedImage
         {
-            [JsonProperty("url")]
-            public string Url { get; set; }
-
-            [JsonConstructor]
-            private DiscordMessageEmbedImage()
-            {
-
-            }
-
-            public DiscordMessageEmbedImage(string url = null)
-            {
-                this.Url = url;
-            }
+            public string url { get; set; }
         }
-        [JsonObject(MemberSerialization.OptIn)]
+        
         public class DiscordMessageEmbedFooter
         {
-            [JsonProperty("text")]
-            public string Text { get; set; }
-            [JsonProperty("icon_url")]
-            public string IconUrl { get; set; }
-
-            [JsonConstructor]
-            private DiscordMessageEmbedFooter()
-            {
-
-            }
-
-            public DiscordMessageEmbedFooter(string text = null, string iconUrl = null)
-            {
-                this.Text = text;
-                this.IconUrl = iconUrl;
-            }
+            public string text { get; set; }
+            public string icon_url { get; set; }
         }
 
         private string TimeFormatter(int duration)
         {
             // This code is from @Sinsa's ScpAdminReports
+            
             if (duration < 60)
             {
-                return ($"{duration}s");
+                return $"{duration}s";
             }
-            else if (duration < 7200)
+
+            if (duration < 7200)
             {
                 int newtime = (duration + 59) / 60;
-                return ($"{newtime}min");
+                return $"{newtime}min";
             }
-            else if (duration < 129600)
+
+            if (duration < 129600)
             {
                 int newtime = (duration + 3599) / 3600;
                 string newtimestring;
+                
                 if (newtime.ToString().Length > 2)
-                {
                     newtimestring = newtime.ToString().Substring(0, 3);
-                }
                 else
-                {
                     newtimestring = newtime.ToString();
-                }
-                return ($"{newtimestring}h");
+                
+                return $"{newtimestring}h";
             }
-            else if (duration < 2678400)
+
+            if (duration < 2678400)
             {
                 int newtime = duration / 86400;
                 string newtimestring;
+                
                 if (newtime.ToString().Length > 2)
-                {
                     newtimestring = newtime.ToString().Substring(0, 3);
-                }
                 else
-                {
                     newtimestring = newtime.ToString();
-                }
-                return ($"{newtimestring}d");
+                    
+                
+                return $"{newtimestring}d";
             }
-            else if (duration < 31622400)
+
+            if (duration < 31622400)
             {
                 int newtime = duration / 2592000;
                 string newtimestring;
+                
                 if (newtime.ToString().Length > 2)
-                {
                     newtimestring = newtime.ToString().Substring(0, 3);
-                }
                 else
-                {
                     newtimestring = newtime.ToString();
-                }
+                
 
-                return ($"{newtimestring}mon");
+                return $"{newtimestring}mon";
             }
+            
             int newduration = duration / 31536000;
             string newdurationstring;
             if (newduration.ToString().Length > 2)
-            {
                 newdurationstring = newduration.ToString().Substring(0, 3);
-            }
             else
-            {
                 newdurationstring = newduration.ToString();
-            }
+            
 
-            return ($"{newdurationstring}y");
+            return $"{newdurationstring}y";
         }
     }
 }
