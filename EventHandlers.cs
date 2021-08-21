@@ -229,7 +229,7 @@ namespace BanLogger
             public string icon_url { get; set; }
         }
 
-        private string TimeFormatter(int duration)
+        private string TimeFormatter(long duration)
         {
             // This code is from @Sinsa's ScpAdminReports
             
