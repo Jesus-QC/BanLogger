@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -240,13 +240,13 @@ namespace BanLogger
 
             if (duration < 7200)
             {
-                int newtime = (duration + 59) / 60;
+                long newtime = (duration + 59) / 60;
                 return $"{newtime}min";
             }
 
             if (duration < 129600)
             {
-                int newtime = (duration + 3599) / 3600;
+                long newtime = (duration + 3599) / 3600;
                 string newtimestring;
                 
                 if (newtime.ToString().Length > 2)
@@ -259,7 +259,7 @@ namespace BanLogger
 
             if (duration < 2678400)
             {
-                int newtime = duration / 86400;
+                long newtime = duration / 86400;
                 string newtimestring;
                 
                 if (newtime.ToString().Length > 2)
@@ -273,7 +273,7 @@ namespace BanLogger
 
             if (duration < 31622400)
             {
-                int newtime = duration / 2592000;
+                long newtime = duration / 2592000;
                 string newtimestring;
                 
                 if (newtime.ToString().Length > 2)
@@ -284,8 +284,8 @@ namespace BanLogger
 
                 return $"{newtimestring}mon";
             }
-            
-            int newduration = duration / 31536000;
+
+            long newduration = duration / 31536000;
             string newdurationstring;
             if (newduration.ToString().Length > 2)
                 newdurationstring = newduration.ToString().Substring(0, 3);
