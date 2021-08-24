@@ -9,7 +9,7 @@ namespace BanLogger
 		public override string Author { get; } = "Jesus-QC";
 		public override string Prefix { get; } = "BanLogger";
 		public override Version Version { get; } = new Version(1, 0, 5);
-		public override Version RequiredExiledVersion { get; } = new Version(2, 3, 3);
+		public override Version RequiredExiledVersion { get; } = new Version(3, 0, 0);
 
 		public static Plugin Instance { get; private set; }
 		private EventHandlers _eventHandlers;
