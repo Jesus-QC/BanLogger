@@ -1,5 +1,6 @@
-﻿using Exiled.API.Interfaces;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using BanLogger.Features.Enums;
+using Exiled.API.Interfaces;
 using System.ComponentModel;
 
 namespace BanLogger
@@ -9,8 +10,27 @@ namespace BanLogger
         [Description("Is the plugin enabled?")]
         public bool IsEnabled { get; set; } = true;
 
-        public string PublicWebhookUrl { get; set; } = "https://discord.com/api/webhooks/webhook.id/webhook.token";
-        public string SecurityWebhookUrl { get; set; } = "https://discord.com/api/webhooks/webhook.id/webhook.token";
+        [Description("Public Webhooks (Mute/Kick/Ban/OBan)")]
+        public Dictionary<MessageType, string> PublicWebhooks { get; set; } = new Dictionary<MessageType, string>()
+        {
+            {
+                MessageType.Kick, "https://discord.com/api/webhooks/webhook.id/webhook.token"
+            },
+            {
+                MessageType.OBan, "https://discord.com/api/webhooks/webhook.id/webhook.token"
+            }
+        };
+        [Description("Private Webhooks (Mute/Kick/Ban/OBan) Contains IDs and more info")]
+        public Dictionary<MessageType, string> PrivateWebhooks { get; set; } = new Dictionary<MessageType, string>()
+        {
+            {
+                MessageType.Mute, "https://discord.com/api/webhooks/webhook.id/webhook.token"
+            },
+            {
+                MessageType.Ban, "https://discord.com/api/webhooks/webhook.id/webhook.token"
+            }
+        };
+
         [Description("Steam Api key to get the nickname of obanned users (Get your api key in https://steamcommunity.com/dev/apikey)")]
         public string SteamApiKey { get; set; } = "00000000000000000000000000000000";
         [Description("Webhook Username")]
@@ -24,24 +44,13 @@ namespace BanLogger
         [Description("Hex Color of the webhook")]
         public string HexColor { get; set; } = "#D10E11";
         [Description("Webhook author name depending of the port of the server")]
-        public Dictionary<int, string> ServerName { get; set; } = new Dictionary<int, string>()
-        {
-            {
-                7777, "MyServer #1 | Security"
-            },
-            {
-                7778, "MyServer #2 | Security"
-            },
-            {
-                7779, "MyServer #3 | Security"
-            },
-        };
+        public string AuthorName { get; set; } = "MyServer #1 | Security";
         [Description("Webhook author image URL (server image)")]
         public string ServerImgUrl { get; set; } = "https://imgur.com/FpPpR90.png";
         [Description("Title of the embed")]
         public string Title { get; set; } = "BAN & KICK LOGGER";
         [Description("Default: User banned:")]
-        public string UserBannedText { get; set; } = "User banned:";
+        public string UserBannedText { get; set; } = "User:";
         [Description("Default: Issuing staff:")]
         public string IssuingStaffText { get; set; } = "Issuing staff:";
         [Description("Default: Reason:")]
