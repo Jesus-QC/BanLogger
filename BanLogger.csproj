@@ -279,7 +279,12 @@
   <ItemGroup>
     <Compile Include="Config.cs" />
     <Compile Include="EventHandlers.cs" />
-    <Compile Include="Features\Discord.cs" />
+    <Compile Include="Features\DiscordHandler.cs" />
+    <Compile Include="Features\Discord\Embed.cs" />
+    <Compile Include="Features\Discord\EmbedAuthor.cs" />
+    <Compile Include="Features\Discord\EmbedFooter.cs" />
+    <Compile Include="Features\Discord\EmbedImage.cs" />
+    <Compile Include="Features\Discord\Message.cs" />
     <Compile Include="Features\Enums\MessageType.cs" />
     <Compile Include="Features\Enums\WebhookType.cs" />
     <Compile Include="Features\Structs\BanInfo.cs" />

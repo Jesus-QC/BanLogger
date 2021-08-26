@@ -1,13 +1,14 @@
-﻿using System.Text.RegularExpressions;
+﻿using System;
 using System.Collections.Generic;
-using BanLogger.Features.Structs;
-using BanLogger.Features.Enums;
 using System.Globalization;
-using Exiled.API.Features;
+using System.IO;
 using System.Linq;
 using System.Net;
-using System.IO;
-using System;
+using System.Text.RegularExpressions;
+using BanLogger.Features.Discord;
+using BanLogger.Features.Enums;
+using BanLogger.Features.Structs;
+using Exiled.API.Features;
 using MEC;
 
 namespace BanLogger.Features
@@ -16,25 +17,25 @@ namespace BanLogger.Features
     {
         public static void CreateEmbed(BanInfo banInfo, MessageType messageType, WebhookType webhookType)
         {
-            var embed = new Discord.Embed
+            var embed = new Embed
             {
                 title = Plugin.Instance.Config.Title,
                 color = ConfigColor,
                 description = CreateEmbedDescription(banInfo, messageType, webhookType),
-                author = new Discord.EmbedAuthor(Plugin.Instance.Config.AuthorName, null, Plugin.Instance.Config.ServerImgUrl),
-                image = new Discord.EmbedImage(Plugin.Instance.Config.ImageUrl),
-                footer = new Discord.EmbedFooter(Plugin.Instance.Config.FooterTxt, Plugin.Instance.Config.FooterIconUrl)
+                author = new EmbedAuthor(Plugin.Instance.Config.AuthorName, null, Plugin.Instance.Config.ServerImgUrl),
+                image = new EmbedImage(Plugin.Instance.Config.ImageUrl),
+                footer = new EmbedFooter(Plugin.Instance.Config.FooterTxt, Plugin.Instance.Config.FooterIconUrl)
             };
 
             var webhook = webhookType == WebhookType.Public ? Plugin.Instance.Config.PublicWebhooks[messageType] : Plugin.Instance.Config.PrivateWebhooks[messageType];
                 
-            if (Discord.Queue.ContainsKey(webhook))
-                Discord.Queue[webhook].Add(embed);
+            if (DiscordHandler.Queue.ContainsKey(webhook))
+                DiscordHandler.Queue[webhook].Add(embed);
             else
-                Discord.Queue.Add(webhook, new List<Discord.Embed> { embed });
+                DiscordHandler.Queue.Add(webhook, new List<Embed> { embed });
 
-            if (!Discord.CoroutineHandle.IsRunning)
-                Discord.CoroutineHandle = Timing.RunCoroutine(Discord.HandleQueue());
+            if (!DiscordHandler.CoroutineHandle.IsRunning)
+                DiscordHandler.CoroutineHandle = Timing.RunCoroutine(DiscordHandler.HandleQueue());
         }
 
         public static string CreateEmbedDescription(BanInfo banInfo, MessageType messageType, WebhookType webhookType)
@@ -44,16 +45,16 @@ namespace BanLogger.Features
             switch (messageType)
             {
                 case MessageType.Mute when webhookType == WebhookType.Public:
-                    fields = new List<Field>()
+                    fields = new List<Field>
                     {
                         new Field(Plugin.Instance.Config.UserBannedText, banInfo.BannedUserInfo.PublicInfo),
-                        new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.BannedUserInfo.PublicInfo),
+                        new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.IssuerUserInfo.PublicInfo),
                         new Field(Plugin.Instance.Config.ReasonText, banInfo.Reason),
                         new Field(Plugin.Instance.Config.TimeBannedText, "Mute"),
                     };
                     break;
                 case MessageType.Mute when  webhookType == WebhookType.Private:
-                    fields = new List<Field>()
+                    fields = new List<Field>
                     {
                         new Field(Plugin.Instance.Config.UserBannedText, banInfo.BannedUserInfo.PrivateInfo),
                         new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.IssuerUserInfo.PrivateInfo),
@@ -62,16 +63,16 @@ namespace BanLogger.Features
                     };
                     break;
                 case MessageType.Kick when webhookType == WebhookType.Public:
-                    fields = new List<Field>()
+                    fields = new List<Field>
                     {
                         new Field(Plugin.Instance.Config.UserBannedText, banInfo.BannedUserInfo.PublicInfo),
-                        new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.BannedUserInfo.PublicInfo),
+                        new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.IssuerUserInfo.PublicInfo),
                         new Field(Plugin.Instance.Config.ReasonText, banInfo.Reason),
                         new Field(Plugin.Instance.Config.TimeBannedText, "Kick"),
                     };
                     break;
                 case MessageType.Kick when webhookType == WebhookType.Private:
-                    fields = new List<Field>()
+                    fields = new List<Field>
                     {
                         new Field(Plugin.Instance.Config.UserBannedText, banInfo.BannedUserInfo.PrivateInfo),
                         new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.IssuerUserInfo.PrivateInfo),
@@ -80,16 +81,16 @@ namespace BanLogger.Features
                     };
                     break;
                 case MessageType.Ban when webhookType == WebhookType.Public:
-                    fields = new List<Field>()
+                    fields = new List<Field>
                     {
                         new Field(Plugin.Instance.Config.UserBannedText, banInfo.BannedUserInfo.PublicInfo),
-                        new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.BannedUserInfo.PublicInfo),
+                        new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.IssuerUserInfo.PublicInfo),
                         new Field(Plugin.Instance.Config.ReasonText, banInfo.Reason),
                         new Field(Plugin.Instance.Config.TimeBannedText, banInfo.ReadableDuration),
                     };
                     break;
                 case MessageType.Ban when webhookType == WebhookType.Private:
-                    fields = new List<Field>()
+                    fields = new List<Field>
                     {
                         new Field(Plugin.Instance.Config.UserBannedText, banInfo.BannedUserInfo.PrivateInfo),
                         new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.IssuerUserInfo.PrivateInfo),
@@ -98,19 +99,19 @@ namespace BanLogger.Features
                     };
                     break;
                 case MessageType.OBan when webhookType == WebhookType.Public:
-                    fields = new List<Field>()
+                    fields = new List<Field>
                     {
                         new Field(Plugin.Instance.Config.UserBannedText, banInfo.BannedUserInfo.PublicInfo),
-                        new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.BannedUserInfo.PublicInfo),
+                        new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.IssuerUserInfo.PublicInfo),
                         new Field(Plugin.Instance.Config.ReasonText, banInfo.Reason),
                         new Field(Plugin.Instance.Config.TimeBannedText, banInfo.ReadableDuration),
                     };
                     break;
                 case MessageType.OBan when webhookType == WebhookType.Private:
-                    fields = new List<Field>()
+                    fields = new List<Field>
                     {
                         new Field(Plugin.Instance.Config.UserBannedText, banInfo.BannedUserInfo.PrivateInfo),
-                        new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.BannedUserInfo.PrivateInfo),
+                        new Field(Plugin.Instance.Config.IssuingStaffText, banInfo.IssuerUserInfo.PrivateInfo),
                         new Field(Plugin.Instance.Config.ReasonText, banInfo.Reason),
                         new Field(Plugin.Instance.Config.TimeBannedText, banInfo.ReadableDuration),
                     };

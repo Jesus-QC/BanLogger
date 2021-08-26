@@ -4,10 +4,11 @@ using System.Linq;
 using Exiled.API.Features;
 using UnityEngine.Networking;
 using System.Collections.Generic;
+using BanLogger.Features.Discord;
 
 namespace BanLogger.Features
 {
-    public class Discord
+    public class DiscordHandler
     {
         public static string DefaultUrl = "https://discord.com/api/webhooks/webhook.id/webhook.token";
         public static Dictionary<string, List<Embed>> Queue = new Dictionary<string, List<Embed>>();
@@ -53,71 +54,6 @@ namespace BanLogger.Features
                 if(Queue.Keys.Count == 0)
                     yield break;
             }
-        }
-        
-        public class Message
-        {
-            public Message()
-            {
-                username = Plugin.Instance.Config.Username;
-                avatar_url = Plugin.Instance.Config.AvatarUrl;
-                content = Plugin.Instance.Config.Content;
-                tts = Plugin.Instance.Config.IsTtsEnabled;
-                embeds = new List<Embed>();
-            }
-            
-            public string username { get; set; }
-            public  string avatar_url { get; set; }
-            public  string content { get; set; }
-            public  bool tts { get; set; }
-            public List<Embed> embeds { get; set; }
-        }
-        
-        public class Embed
-        {
-            public int? color { get; set; }
-            public EmbedAuthor author { get; set; }
-            public string title { get; set; }
-            public string url { get; set; }
-            public string description { get; set; }
-            public EmbedImage image { get; set; }
-            public EmbedFooter footer { get; set; }
-        }
-
-        public class EmbedAuthor
-        {
-            public EmbedAuthor(string name, string url, string iconUrl)
-            {
-                this.name = name;
-                this.url = url;
-                icon_url = iconUrl;
-            }
-            
-            public string name { get; set; }
-            public string url { get; set; }
-            public string icon_url { get; set; }
-        }
-        
-        public class EmbedImage
-        {
-            public EmbedImage(string url)
-            {
-                this.url = url;
-            }
-            
-            public string url { get; set; }
-        }
-        
-        public class EmbedFooter
-        {
-            public EmbedFooter(string text, string iconUrl)
-            {
-                this.text = text;
-                icon_url = iconUrl;
-            }
-            
-            public string text { get; set; }
-            public string icon_url { get; set; }
         }
     }
 }
