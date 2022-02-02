@@ -1,5 +1,5 @@
 <h4 align="center">
-  <img alt="Ban Logger" src="https://github.com/Jesus-QC/things/blob/main/banlogger.png?raw=true">
+  <img alt="Ban Logger" src="https://user-images.githubusercontent.com/69375249/152147913-23ea3f20-dafb-4133-a1d2-4b13b2926b86.png">
 </h4>
 
 ***Ban Logger*** This plugin allows you to log bans into any discord channel of your server with the help of webhooks.
